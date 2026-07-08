@@ -3,15 +3,15 @@
 importScripts('https://www.gstatic.com/firebasejs/9.0.0/firebase-app-compat.js');
 importScripts('https://www.gstatic.com/firebasejs/9.0.0/firebase-messaging-compat.js');
 
-// Initialize the Firebase app in the service worker by passing in default / placeholder keys.
-// These should match the application firebaseConfig.
+const params = new URLSearchParams(location.search);
+
 firebase.initializeApp({
-  apiKey: "PLACEHOLDER_KEY",
-  authDomain: "PLACEHOLDER_DOMAIN",
-  projectId: "PLACEHOLDER_PROJECT",
-  storageBucket: "PLACEHOLDER_BUCKET",
-  messagingSenderId: "PLACEHOLDER_SENDER_ID",
-  appId: "PLACEHOLDER_APP_ID"
+  apiKey: params.get('apiKey') || "PLACEHOLDER",
+  authDomain: params.get('authDomain') || "PLACEHOLDER",
+  projectId: params.get('projectId') || "PLACEHOLDER",
+  storageBucket: params.get('storageBucket') || "PLACEHOLDER",
+  messagingSenderId: params.get('messagingSenderId') || "PLACEHOLDER",
+  appId: params.get('appId') || "PLACEHOLDER"
 });
 
 const messaging = firebase.messaging();

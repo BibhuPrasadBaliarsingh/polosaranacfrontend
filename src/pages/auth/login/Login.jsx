@@ -1,0 +1,311 @@
+// @ts-nocheck
+import { useState } from "react";
+import { useTranslation } from "react-i18next";
+import { useNavigate } from "react-router-dom";
+import { toast } from "react-toastify";
+import { X, HelpCircle, Phone, Mail } from "lucide-react";
+
+import CitizenLoginForm from "./components/CitizenLoginForm";
+import LanguageSelector from "./components/LanguageSelector";
+import LeftPanel from "./components/LeftPanel";
+import LoginFooterHelp from "./components/LoginFooterHelp";
+import RoleTabs from "./components/RoleTabs";
+import StaffLoginForm from "./components/StaffLoginForm";
+
+import { adminLogin, supervisorLogin } from "../../../api/admin/auth.api";
+import { useAuth } from "../../../context/AuthContext";
+import {
+  DOWNLOAD_URL,
+  downloadFileFromPublic,
+  LOGO,
+} from "./utils/loginHelpers";
+import api from "../../../api/api";
+
+const Login = () => {
+  const { login } = useAuth();
+  const navigate = useNavigate();
+  const { t, i18n } = useTranslation();
+
+  const [role, setRole] = useState("citizen");
+  const [phone, setPhone] = useState("");
+  const [otp, setOtp] = useState("");
+  const [showOtpInput, setShowOtpInput] = useState(false);
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [generatedOtp, setGeneratedOtp] = useState("");
+  const [showHelpModal, setShowHelpModal] = useState(false);
+
+  const handleDownloadGuide = () => {
+    downloadFileFromPublic(DOWNLOAD_URL, "SBM 2.0.pdf");
+  };
+
+  /* ---------- citizen login ---------- */
+
+  const handleGetOtp = async () => {
+    if (phone.length !== 10) {
+      toast.warning("Phone number must be 10 digits ❗");
+      return;
+    }
+
+    try {
+      const response = await api.post("/citizen/send-otp", { phone });
+      setGeneratedOtp(response.data.otp);
+      setShowOtpInput(true);
+      toast.success("OTP sent to your phone!");
+    } catch (error) {
+      toast.error("In Valid Phone Number ❌");
+      console.error("Send OTP error:", error);
+    }
+  };
+
+  const handleVerifyOtp = async () => {
+    try {
+      const response = await api.post("/citizen/verify-otp", {
+        phone: phone.trim(),
+        otp: otp.trim(), // 🔥 THIS IS THE FIX
+      });
+
+      const { token, citizen } = response.data;
+
+      localStorage.setItem("token", token);
+      // Clear any leftover admin cookie that might cause admin data to be returned
+      try {
+        await api.post("/admin/logout");
+      } catch (e) {
+        // ignore
+      }
+
+      login({ role: "citizen", phone, citizen });
+
+      toast.success("Login successful!");
+      navigate("/citizen");
+    } catch (error) {
+      console.error("Verify OTP error:", error.response?.data);
+      toast.error(
+        error.response?.data?.message ||
+          "Invalid OTP or expired. Please try again.",
+      );
+    }
+  };
+
+
+  /* ---------- staff login ---------- */
+
+  const handleStaffLogin = async (inputUsername) => {
+    if (!username || !password) {
+      toast.warning("Please enter username and password ❗");
+      return;
+    }
+
+    try {
+      let response;
+
+      const normalizedUsername = (inputUsername || username || "").trim().toLowerCase();
+
+      if (role === "admin") {
+        response = await adminLogin(normalizedUsername, password);
+      } else if (role === "supervisor") {
+        response = await supervisorLogin(normalizedUsername, password);
+      } else {
+        // Other roles (driver, etc.)
+        const { data: users } = await api.get("/users", {
+          params: { username, password, role },
+        });
+
+        if (!users || users.length === 0) {
+          toast.error("Invalid username or password ❌");
+          return;
+        }
+
+        login({ role, username });
+        toast.success("Login successful!");
+        navigate(`/${role}`);
+        return;
+      }
+
+      if (response?.success || response?.message?.includes("successful")) {
+        const userData = {
+          role,
+          username: (inputUsername || username),
+          ...(response.data || {}),
+        };
+
+        const token = response.token || null;
+        login(userData, token);
+
+        toast.success(response.message || "Login successful!");
+        navigate(`/${role}`);
+      } else {
+        toast.error(response?.message || "Login failed ❌");
+      }
+    } catch (error) {
+      console.error("Login error:", error);
+      toast.error(
+        error?.message || error?.error || "Invalid username or password ❌",
+      );
+    }
+  };
+
+  /* ---------- reset on role change ---------- */
+
+  const resetFormOnRoleChange = () => {
+    setShowOtpInput(false);
+    setOtp("");
+    setPhone("");
+    setUsername("");
+    setPassword("");
+  };
+
+  return (
+    <div className="min-h-screen flex flex-col lg:flex-row font-sans bg-gray-100">
+      <LeftPanel />
+
+      <div className="lg:w-1/2 flex items-center justify-center p-4 lg:p-8">
+        <div className="w-full max-w-md">
+          {/* Mobile Logo */}
+          <div className="lg:hidden flex justify-center mb-6">
+            <div className=" border-b border-white/20 rounded-full flex items-center justify-center shadow-xl">
+                <img
+                  src={LOGO}
+                  alt="Polosara NAC Logo"
+                  className="w-28 h-28 shrink-0 object-contain p-1 rounded-full bg-white"
+                />
+              </div>
+          </div>
+
+          <div className="bg-white rounded-3xl shadow-2xl p-8 lg:p-9 border border-gray-100 relative">
+            <div className="absolute -top-[3px] left-0 right-0 h-1 rounded-t-3xl bg-gradient-to-r from-emerald-500 via-emerald-400 to-amber-400" />
+
+            <LanguageSelector i18n={i18n} />
+
+            <div className="flex justify-center mb-6">
+              <div className=" border-b border-white/20 rounded-full flex items-center justify-center shadow-xl">
+                <img
+                  src={LOGO}
+                  alt="Polosara NAC Logo"
+                  className="w-30 h-30 shrink-0 object-contain p-2 rounded-full bg-white"
+                />
+              </div>
+            </div>
+
+            <RoleTabs
+              role={role}
+              setRole={setRole}
+              onReset={resetFormOnRoleChange}
+            />
+
+            <h2 className="text-2xl font-bold text-gray-800 mb-1 text-center">
+              {t("loginTitle", { role: t(`roles.${role}`) })}
+            </h2>
+            <p className="text-gray-500 text-sm text-center mb-6">
+              {t("welcomeMessage")}
+            </p>
+
+            {role === "citizen" ? (
+              <CitizenLoginForm
+                showOtpInput={showOtpInput}
+                phone={phone}
+                setPhone={setPhone}
+                otp={otp}
+                setOtp={setOtp}
+                generatedOtp={generatedOtp}
+                onGetOtp={handleGetOtp}
+                onVerifyOtp={handleVerifyOtp}
+                onChangePhone={() => {
+                  setShowOtpInput(false);
+                  setOtp("");
+                }}
+              />
+            ) : (
+              <StaffLoginForm
+                username={username}
+                setUsername={setUsername}
+                password={password}
+                setPassword={setPassword}
+                onLogin={handleStaffLogin}
+                role={role}
+                onDownloadGuide={handleDownloadGuide}
+              />
+            )}
+
+            <p className="text-xs text-center text-gray-500 mt-6">
+              By logging in, you agree to our{" "}
+              <a href="#" className="text-emerald-600 hover:underline">
+                Terms of Service
+              </a>{" "}
+              and{" "}
+              <a href="#" className="text-emerald-600 hover:underline">
+                Privacy Policy
+              </a>
+            </p>
+          </div>
+
+          {/* <LoginFooterHelp /> */}
+        </div>
+      </div>
+
+      {/* Help & Support Floating Button */}
+      <button
+        onClick={() => setShowHelpModal(true)}
+        className="fixed bottom-6 right-6 rounded-full bg-emerald-600 hover:bg-emerald-700 text-white p-4 shadow-lg transition-all duration-300 hover:scale-110 z-40"
+        aria-label="Help and Support"
+      >
+        <HelpCircle className="h-6 w-6" />
+      </button>
+
+      {/* Help & Support Modal */}
+      {showHelpModal && (
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-8 relative">
+            <button
+              onClick={() => setShowHelpModal(false)}
+              className="absolute top-4 right-4 p-1 hover:bg-gray-100 rounded-full transition"
+              aria-label="Close help modal"
+            >
+              <X className="h-6 w-6 text-gray-600" />
+            </button>
+
+            <h2 className="text-2xl font-bold text-gray-800 mb-2">
+              Help & Support
+            </h2>
+            <p className="text-gray-600 text-sm mb-6">
+              For any queries or assistance, please contact us using the details below. Our support is available between <span className="font-semibold">10:00 AM and 6:00 PM</span>
+            </p>
+
+            <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-6">
+              <h3 className="text-lg font-semibold text-gray-800 mb-4">
+                MIS Support
+              </h3>
+
+              <div className="space-y-4">
+                {/* Phone */}
+                <div className="flex items-center gap-3">
+                  <Phone className="h-5 w-5 text-emerald-600 flex-shrink-0" />
+                  <a
+                    href="tel:06818251135"
+                    className="text-emerald-700 font-semibold hover:underline"
+                  >
+                    06818-251135
+                  </a>
+                </div>
+
+                {/* Email */}
+                <div className="flex items-center gap-3">
+                  <Mail className="h-5 w-5 text-emerald-600 flex-shrink-0" />
+                  <a
+                    href="mailto:polosaranac@rediffmail.com"
+                    className="text-emerald-700 font-semibold hover:underline break-all"
+                  >
+                    polosaranac@rediffmail.com
+                  </a>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default Login;

@@ -32,6 +32,16 @@ try {
  */
 export const requestNotificationPermission = async () => {
   try {
+    if (!("Notification" in window)) {
+      console.error("This browser does not support desktop notification. (Check if you are on HTTPS)");
+      return null;
+    }
+
+    if (!("serviceWorker" in navigator)) {
+      console.error("Service Worker is not supported in this browser. (Check if you are on HTTPS)");
+      return null;
+    }
+
     const permission = await Notification.requestPermission();
     console.log(`[Notification Permission] State: ${permission}`);
 

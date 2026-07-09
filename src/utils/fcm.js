@@ -64,19 +64,24 @@ export const requestNotificationPermission = async () => {
         return "mock_fcm_token_" + Date.now();
       }
 
-      const swUrl = `/firebase-messaging-sw.js?apiKey=${import.meta.env.VITE_FIREBASE_API_KEY}&authDomain=${import.meta.env.VITE_FIREBASE_AUTH_DOMAIN}&projectId=${import.meta.env.VITE_FIREBASE_PROJECT_ID}&storageBucket=${import.meta.env.VITE_FIREBASE_STORAGE_BUCKET}&messagingSenderId=${import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID}&appId=${import.meta.env.VITE_FIREBASE_APP_ID}`;
+      console.log("✔ [FCM Client] Notification permission granted. Registering service worker...");
+      const swUrl = "/firebase-messaging-sw.js";
       const registration = await navigator.serviceWorker.register(swUrl, { scope: "/firebase-cloud-messaging-push-scope" });
+      console.log("✔ [FCM Client] Service Worker registered at scope:", registration.scope);
 
+      console.log("✔ [FCM Client] Retrieving FCM token...");
       const token = await getToken(messaging, {
         vapidKey: import.meta.env.VITE_FIREBASE_VAPID_KEY,
         serviceWorkerRegistration: registration,
       });
-
       if (token) {
+        console.log("✔ [FCM Client] Token generated:", token);
         // Send token to server
         await api.post("/citizen/fcm-token", { token, deviceType: "web" });
-        console.log("🔥 FCM token registered on server:", token);
+        console.log("✔ [FCM Client] Token registered on server.");
         return token;
+      } else {
+        console.warn("⚠️ [FCM Client] No token received from Firebase.");
       }
     }
   } catch (error) {

@@ -18,6 +18,7 @@ export default defineConfig({
         name: 'Polosara NAC',
         short_name: 'Polosara',
         description: 'Polosara NAC Vehicle Tracking and Management',
+        start_url: '/',
         theme_color: '#10b981', // emerald-500
         background_color: '#ffffff',
         display: 'standalone',

@@ -2,6 +2,19 @@ import { initializeApp } from "firebase/app";
 import { getMessaging, getToken, onMessage } from "firebase/messaging";
 import api from "../api/api";
 
+// Check HTTPS requirements in production
+if (typeof window !== "undefined") {
+  const isLocalhost = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1";
+  if (!isLocalhost && window.location.protocol !== "https:") {
+    console.error("❌ PWA Push Notifications CRITICAL WARNING: FCM and Service Workers require HTTPS in production! Push will fail on this domain.");
+  }
+
+  const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || "https://polosaranacbackend.onrender.com/api";
+  if (!isLocalhost && !apiBaseUrl.startsWith("https://")) {
+    console.warn(`⚠️ PWA Push Notifications WARNING: API base URL "${apiBaseUrl}" is not using HTTPS. Push subscriptions might fail.`);
+  }
+}
+
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
   authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
@@ -52,7 +65,7 @@ export const requestNotificationPermission = async () => {
       }
 
       const swUrl = `/firebase-messaging-sw.js?apiKey=${import.meta.env.VITE_FIREBASE_API_KEY}&authDomain=${import.meta.env.VITE_FIREBASE_AUTH_DOMAIN}&projectId=${import.meta.env.VITE_FIREBASE_PROJECT_ID}&storageBucket=${import.meta.env.VITE_FIREBASE_STORAGE_BUCKET}&messagingSenderId=${import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID}&appId=${import.meta.env.VITE_FIREBASE_APP_ID}`;
-      const registration = await navigator.serviceWorker.register(swUrl);
+      const registration = await navigator.serviceWorker.register(swUrl, { scope: "/firebase-cloud-messaging-push-scope" });
 
       const token = await getToken(messaging, {
         vapidKey: import.meta.env.VITE_FIREBASE_VAPID_KEY,

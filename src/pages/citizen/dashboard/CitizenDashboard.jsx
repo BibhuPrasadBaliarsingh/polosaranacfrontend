@@ -7,7 +7,7 @@ import polosara2 from "../../../assets/polosara2.jpg";
 import polosara3 from "../../../assets/polosara3.jpg";
 import { useAuth } from "../../../context/AuthContext";
 import { toast } from "react-toastify";
-import { requestNotificationPermission, onMessageListener } from "../../../utils/fcm.js";
+import { onMessageListener } from "../../../utils/fcm.js";
 
 
 export default function CitizenDashboard() {
@@ -29,8 +29,6 @@ export default function CitizenDashboard() {
      ========================= */
   useEffect(() => {
     if (user && user.role === "citizen") {
-      requestNotificationPermission();
-
       const unsubscribe = onMessageListener((payload) => {
         console.log("Foreground notification received:", payload);
         

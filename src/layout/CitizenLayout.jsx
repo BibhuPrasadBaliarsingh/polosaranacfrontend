@@ -18,8 +18,10 @@ export default function CitizenLayout() {
       try {
         const res = await api.get("/citizen/notifications");
         const list = res?.data?.notifications || [];
-        setNotifications(list);
-        setUnreadCount(list.filter((n) => !n.isRead).length);
+        // Only keep unread notifications so dismissed ones stay permanently removed
+        const unreadList = list.filter((n) => !n.isRead);
+        setNotifications(unreadList);
+        setUnreadCount(unreadList.length);
       } catch {
         // silently ignore – not critical
       }

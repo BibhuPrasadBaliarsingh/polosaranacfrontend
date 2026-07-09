@@ -31,20 +31,39 @@ export default function CitizenDashboard() {
     if (user && user.role === "citizen") {
       requestNotificationPermission();
 
-      onMessageListener()
-        .then((payload) => {
-          console.log("Foreground notification received:", payload);
-          toast.info(payload.notification?.body || "Vehicle has entered your ward!", {
-            position: "top-right",
-            autoClose: 5000,
-            hideProgressBar: false,
-            closeOnClick: true,
-            pauseOnHover: true,
-            draggable: true,
-            theme: "colored",
+      const unsubscribe = onMessageListener((payload) => {
+        console.log("Foreground notification received:", payload);
+        
+        // 1. Show in-app Toast Notification
+        toast.info(payload.notification?.body || "Vehicle has entered your ward!", {
+          position: "top-right",
+          autoClose: 5000,
+          hideProgressBar: false,
+          closeOnClick: true,
+          pauseOnHover: true,
+          draggable: true,
+          theme: "colored",
+        });
+
+        // 2. Force Native OS Notification even when app is open (like flipkart/youtube)
+        if (Notification.permission === "granted") {
+          navigator.serviceWorker.ready.then((registration) => {
+            registration.showNotification(
+              payload.notification?.title || "Vehicle Entry Alert",
+              {
+                body: payload.notification?.body || "A waste collection vehicle entered your ward.",
+                icon: "/image.jpg",
+                badge: "/image.jpg",
+                data: payload.data,
+              }
+            );
           });
-        })
-        .catch((err) => console.log("Failed to receive foreground notification:", err));
+        }
+      });
+      
+      return () => {
+        if (unsubscribe) unsubscribe();
+      };
     }
   }, [user]);
 

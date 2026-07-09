@@ -5,9 +5,7 @@ const CitizenNotifications = ({ notifications, setNotifications, onClose }) => {
     try {
       await markCitizenNotificationRead(notificationId);
       setNotifications((prev) =>
-        prev.map((item) =>
-          item._id === notificationId ? { ...item, isRead: true } : item,
-        ),
+        prev.filter((item) => item._id !== notificationId)
       );
     } catch (error) {
       console.error("Failed to mark notification as read", error);
@@ -27,26 +25,91 @@ const CitizenNotifications = ({ notifications, setNotifications, onClose }) => {
           </div>
         ) : (
           notifications.map((notification) => (
-            <button
+            <SwipeableNotification
               key={notification._id}
-              onClick={() => handleMarkRead(notification._id)}
-              className={`w-full border-b border-gray-100 px-4 py-3 text-left transition hover:bg-emerald-50 ${
-                notification.isRead ? "bg-white" : "bg-emerald-50/70"
-              }`}
-            >
-              <p className="text-sm font-semibold text-gray-900">
-                {notification.title}
-              </p>
-              <p className="mt-1 text-sm text-gray-700">
-                {notification.message}
-              </p>
-              <p className="mt-1 text-xs text-gray-500">
-                {new Date(notification.entryAt).toLocaleString("en-IN")}
-              </p>
-            </button>
+              notification={notification}
+              onDismiss={handleMarkRead}
+            />
           ))
         )}
       </div>
+    </div>
+  );
+};
+
+import { useState, useRef } from "react";
+
+const SwipeableNotification = ({ notification, onDismiss }) => {
+  const [translateX, setTranslateX] = useState(0);
+  const [isDragging, setIsDragging] = useState(false);
+  const [isDismissing, setIsDismissing] = useState(false);
+  const startXRef = useRef(0);
+
+  const handlePointerDown = (e) => {
+    if (isDismissing) return;
+    setIsDragging(true);
+    startXRef.current = e.clientX || (e.touches && e.touches[0].clientX);
+  };
+
+  const handlePointerMove = (e) => {
+    if (!isDragging) return;
+    const clientX = e.clientX || (e.touches && e.touches[0].clientX);
+    const deltaX = clientX - startXRef.current;
+    
+    setTranslateX(deltaX);
+  };
+
+  const handlePointerUp = () => {
+    if (!isDragging) return;
+    setIsDragging(false);
+    
+    if (Math.abs(translateX) > 80) { // Threshold to dismiss
+      setIsDismissing(true);
+      setTranslateX(translateX > 0 ? 500 : -500); // Slide off screen
+      setTimeout(() => {
+        onDismiss(notification._id);
+      }, 300); // wait for animation
+    } else {
+      setTranslateX(0); // Snap back
+    }
+  };
+
+  if (isDismissing && translateX === 0) return null; // already dismissed
+
+  return (
+    <div
+      style={{
+        transform: `translateX(${translateX}px)`,
+        transition: isDragging ? 'none' : 'transform 0.3s ease-out, opacity 0.3s',
+        opacity: 1 - Math.abs(translateX) / 200,
+        touchAction: 'pan-y'
+      }}
+      onPointerDown={handlePointerDown}
+      onPointerMove={handlePointerMove}
+      onPointerUp={handlePointerUp}
+      onPointerLeave={handlePointerUp}
+      // Mobile Touch Support Fallback
+      onTouchStart={handlePointerDown}
+      onTouchMove={handlePointerMove}
+      onTouchEnd={handlePointerUp}
+      className={`w-full border-b border-gray-100 px-4 py-3 text-left transition hover:bg-emerald-50 cursor-pointer relative ${
+        notification.isRead ? "bg-white" : "bg-emerald-50/70"
+      }`}
+    >
+      {/* Background Icon indicating slide to dismiss */}
+      <div className="absolute inset-y-0 right-4 flex items-center justify-end -z-10 opacity-50">
+         <span className="text-red-500 text-xs font-bold">Swipe</span>
+      </div>
+      
+      <p className="text-sm font-semibold text-gray-900 bg-inherit">
+        {notification.title}
+      </p>
+      <p className="mt-1 text-sm text-gray-700 bg-inherit">
+        {notification.message}
+      </p>
+      <p className="mt-1 text-xs text-gray-500 bg-inherit">
+        {new Date(notification.entryAt).toLocaleString("en-IN")}
+      </p>
     </div>
   );
 };

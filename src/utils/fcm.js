@@ -66,13 +66,11 @@ export const requestNotificationPermission = async () => {
  * Listens for incoming FCM messages when the app is in the foreground.
  * Call this inside components to handle live notifications.
  */
-export const onMessageListener = () =>
-  new Promise((resolve) => {
-    if (!messaging) {
-      // Mock resolve callback
-      return;
-    }
-    onMessage(messaging, (payload) => {
-      resolve(payload);
-    });
+export const onMessageListener = (callback) => {
+  if (!messaging) {
+    return () => {};
+  }
+  return onMessage(messaging, (payload) => {
+    callback(payload);
   });
+};

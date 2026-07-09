@@ -70,13 +70,13 @@ const WardCoverage = ({ data }) => {
         </div>
       ) : (
         <div className="space-y-3 max-h-[420px] overflow-y-auto">
-          {wards.map((ward) => {
+          {wards.map((ward, index) => {
             const { status, coverage } = calculateStatus(ward);
             const styles = getStatusStyles(status);
 
             return (
               <div
-                key={ward._id}
+                key={ward._id || index}
                 className={`${styles.bg} border ${styles.border} rounded-xl p-4`}
               >
                 <div className="flex items-center justify-between mb-2">

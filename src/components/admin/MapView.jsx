@@ -199,12 +199,12 @@ const MapView = ({ vehicles = [], selectedVehicle = null }) => {
   const getTrailPositions = (trail) =>
     Array.isArray(trail)
       ? trail
-          .filter((point) => point && typeof point === 'object')
-          .map((point) =>
-            Array.isArray(point)
-              ? point
-              : [Number(point.lat), Number(point.lng)],
-          )
+        .filter((point) => point && typeof point === 'object')
+        .map((point) =>
+          Array.isArray(point)
+            ? point
+            : [Number(point.lat), Number(point.lng)],
+        )
       : [];
 
   const buildOsrmRouteUrl = (positions) => {
@@ -259,6 +259,12 @@ const MapView = ({ vehicles = [], selectedVehicle = null }) => {
         const response = await api.get("/tracking/trails");
         if (response?.data?.success && response?.data?.data) {
           const storedTrails = response.data.data;
+          
+          // Clean up any corrupted trails saved from before the _id fix
+          if (storedTrails["undefined"]) {
+            delete storedTrails["undefined"];
+          }
+          
           vehicleTrails.current = storedTrails;
           setVehicleTrailsState({ ...storedTrails });
         }
@@ -281,12 +287,15 @@ const MapView = ({ vehicles = [], selectedVehicle = null }) => {
     const now = Date.now();
 
     vehicles.forEach(vehicle => {
+      const vid = vehicle._id || vehicle.id;
+      if (!vid) return;
+
       if (vehicle.location) {
-        if (!Array.isArray(vehicleTrails.current[vehicle.id])) {
-          vehicleTrails.current[vehicle.id] = [];
+        if (!Array.isArray(vehicleTrails.current[vid])) {
+          vehicleTrails.current[vid] = [];
         }
 
-        const trail = normalizeTrail(vehicleTrails.current[vehicle.id]);
+        const trail = normalizeTrail(vehicleTrails.current[vid]);
         const lastPoint = trail[trail.length - 1];
 
         const pointTimestamp = vehicle.lastUpdated
@@ -305,7 +314,7 @@ const MapView = ({ vehicles = [], selectedVehicle = null }) => {
           });
         }
 
-        vehicleTrails.current[vehicle.id] = trail.filter(
+        vehicleTrails.current[vid] = trail.filter(
           point => now - point.timestamp <= TRAIL_RETENTION_MS
         );
       }
@@ -430,7 +439,8 @@ const MapView = ({ vehicles = [], selectedVehicle = null }) => {
 
   const filteredVehicles = vehicles.filter(v => v.location);
   const vehicleLabels = filteredVehicles.reduce((acc, v) => {
-    acc[v.id] = v.registrationNumber || v.id;
+    const vid = v._id || v.id;
+    acc[vid] = v.registrationNumber || vid;
     return acc;
   }, {});
 
@@ -454,11 +464,10 @@ const MapView = ({ vehicles = [], selectedVehicle = null }) => {
             <button
               key={key}
               onClick={() => setMapType(key)}
-              className={`px-3 py-2 rounded-lg text-xs font-semibold transition-all ${
-                mapType === key
+              className={`px-3 py-2 rounded-lg text-xs font-semibold transition-all ${mapType === key
                   ? 'bg-linear-to-r from-emerald-500 to-teal-500 text-white shadow-md'
                   : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
+                }`}
             >
               {tile.name}
             </button>
@@ -467,11 +476,10 @@ const MapView = ({ vehicles = [], selectedVehicle = null }) => {
           {/* Show trails toggle */}
           <button
             onClick={() => setShowTrails(!showTrails)}
-            className={`px-3 py-2 rounded-lg text-xs font-semibold transition-all ${
-              showTrails
+            className={`px-3 py-2 rounded-lg text-xs font-semibold transition-all ${showTrails
                 ? 'bg-purple-500 text-white'
                 : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-            }`}
+              }`}
             title="Show vehicle movement trails"
           >
             📍 Trails
@@ -521,73 +529,72 @@ const MapView = ({ vehicles = [], selectedVehicle = null }) => {
         />
 
         {/* Vehicle Markers */}
-        {filteredVehicles.map((vehicle) => (
-        <AnimatedMarker
-          key={vehicle.id}
-          position={[vehicle.location.lat, vehicle.location.lng]}
-          icon={createVehicleIcon(vehicle)}
-        >
-          <Popup autoPan closeButton>
-      <div className="p-2 min-w-55">
-        {/* Header */}
-        <div className="flex items-center justify-between mb-2">
-          <h3 className="font-bold text-gray-900">
-            {vehicle.registrationNumber}
-          </h3>
-
-          <span
-            className={`text-xs font-bold px-2 py-1 rounded-full ${
-              vehicle.status === 'running'
-                ? 'bg-emerald-500 text-white'
-                : vehicle.status === 'standing'
-                ? 'bg-blue-500 text-white'
-                : vehicle.status === 'stopped'
-                ? 'bg-orange-500 text-white'
-                : 'bg-gray-500 text-white'
-            }`}
+        {filteredVehicles.map((vehicle, index) => (
+          <AnimatedMarker
+            key={vehicle.id || vehicle._id || index}
+            position={[vehicle.location.lat, vehicle.location.lng]}
+            icon={createVehicleIcon(vehicle)}
           >
-            {vehicle.status}
-          </span>
-        </div>
+            <Popup autoPan closeButton>
+              <div className="p-2 min-w-55">
+                {/* Header */}
+                <div className="flex items-center justify-between mb-2">
+                  <h3 className="font-bold text-gray-900">
+                    {vehicle.registrationNumber}
+                  </h3>
 
-        {/* Details */}
-        <div className="space-y-1 text-sm">
-          <p className="text-gray-700">
-            <span className="font-semibold">📍 Ward:</span>{' '}
-            {vehicle.assignedWard}
-          </p>
+                  <span
+                    className={`text-xs font-bold px-2 py-1 rounded-full ${vehicle.status === 'running'
+                        ? 'bg-emerald-500 text-white'
+                        : vehicle.status === 'standing'
+                          ? 'bg-blue-500 text-white'
+                          : vehicle.status === 'stopped'
+                            ? 'bg-orange-500 text-white'
+                            : 'bg-gray-500 text-white'
+                      }`}
+                  >
+                    {vehicle.status}
+                  </span>
+                </div>
 
-          <p className="text-gray-700">
-            <span className="font-semibold">⚡ Speed:</span>{' '}
-            {vehicle.speed != null ? `${vehicle.speed} km/h` : 'N/A'}
-          </p>
+                {/* Details */}
+                <div className="space-y-1 text-sm">
+                  <p className="text-gray-700">
+                    <span className="font-semibold">📍 Ward:</span>{' '}
+                    {vehicle.assignedWard}
+                  </p>
 
-          <p className="text-gray-700">
-            <span className="font-semibold">📶 Signal:</span>{' '}
-            {vehicle.signalStrength ?? 'N/A'}
-          </p>
+                  <p className="text-gray-700">
+                    <span className="font-semibold">⚡ Speed:</span>{' '}
+                    {vehicle.speed != null ? `${vehicle.speed} km/h` : 'N/A'}
+                  </p>
 
-          <p className="text-gray-700">
-            <span className="font-semibold">🔑 Ignition:</span>{' '}
-            {vehicle.ignitionOn ? 'ON' : 'OFF'}
-          </p>
-          <p className="text-gray-700">
-            <span className="font-semibold">🗺️ Location:</span>{' '}
-            {vehicle.location.lat.toFixed(4)}, {vehicle.location.lng.toFixed(4)}
-          </p>
-        </div>
+                  <p className="text-gray-700">
+                    <span className="font-semibold">📶 Signal:</span>{' '}
+                    {vehicle.signalStrength ?? 'N/A'}
+                  </p>
 
-        {/* Footer */}
-        <div className="mt-2 border-t pt-2">
-          <p className="text-xs text-gray-500">
-            Last update:{' '}
-            {new Date(vehicle.lastUpdated).toLocaleString()}
-          </p>
-        </div>
-      </div>
-    </Popup>
-  </AnimatedMarker>
-))}
+                  <p className="text-gray-700">
+                    <span className="font-semibold">🔑 Ignition:</span>{' '}
+                    {vehicle.ignitionOn ? 'ON' : 'OFF'}
+                  </p>
+                  <p className="text-gray-700">
+                    <span className="font-semibold">🗺️ Location:</span>{' '}
+                    {vehicle.location.lat.toFixed(4)}, {vehicle.location.lng.toFixed(4)}
+                  </p>
+                </div>
+
+                {/* Footer */}
+                <div className="mt-2 border-t pt-2">
+                  <p className="text-xs text-gray-500">
+                    Last update:{' '}
+                    {new Date(vehicle.lastUpdated).toLocaleString()}
+                  </p>
+                </div>
+              </div>
+            </Popup>
+          </AnimatedMarker>
+        ))}
 
         {showTrails &&
           Object.entries(vehicleTrailsState).map(([vehicleId, trail]) => {

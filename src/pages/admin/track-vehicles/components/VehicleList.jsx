@@ -6,6 +6,7 @@ const VehicleList = ({
   filteredVehicles,
   setSelectedVehicle,
   onSimulateClick,
+  onAssignWard,
 }) => {
   return (
     <div className="bg-white rounded-2xl shadow-xl p-6 border border-gray-100">
@@ -109,17 +110,30 @@ const VehicleList = ({
                       )}
                     </p>
                   </div>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      if (onSimulateClick) {
-                        onSimulateClick(vehicle);
-                      }
-                    }}
-                    className="hidden md:block px-3 py-1 bg-blue-100 text-blue-700 hover:bg-blue-200 rounded-lg text-sm font-semibold transition-colors border border-blue-200"
-                  >
-                    Simulate Ping
-                  </button>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (onAssignWard) {
+                          onAssignWard(vehicle);
+                        }
+                      }}
+                      className="hidden md:block px-3 py-1 bg-emerald-100 text-emerald-700 hover:bg-emerald-200 rounded-lg text-sm font-semibold transition-colors border border-emerald-200"
+                    >
+                      Assign Ward
+                    </button>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (onSimulateClick) {
+                          onSimulateClick(vehicle);
+                        }
+                      }}
+                      className="hidden md:block px-3 py-1 bg-blue-100 text-blue-700 hover:bg-blue-200 rounded-lg text-sm font-semibold transition-colors border border-blue-200"
+                    >
+                      Simulate Ping
+                    </button>
+                  </div>
                 </div>
               </div>
 

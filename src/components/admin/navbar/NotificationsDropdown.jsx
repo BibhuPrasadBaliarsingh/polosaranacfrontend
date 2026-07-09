@@ -122,62 +122,126 @@ const NotificationsDropdown = ({
             </div>
           ) : (
             notifications.map((notification) => (
-              <div
+              <SwipeableNotification
                 key={`${notification.type}-${notification.id}`}
-                onClick={() => markAsRead(notification.id)}
-                className="p-4 border-b border-gray-100 hover:bg-emerald-50 transition-all group border-l-4 border-l-emerald-400 bg-emerald-50/50 cursor-pointer"
-              >
-                <div className="flex items-start space-x-3">
-                  <div
-                    className={`w-3 h-3 rounded-full mt-2 shrink-0 shadow-sm ${
-                      notification.priority === "high"
-                        ? "bg-red-500"
-                        : notification.priority === "medium"
-                        ? "bg-yellow-500"
-                        : "bg-emerald-500"
-                    }`}
-                  ></div>
-
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-1">
-                      <p className="text-sm font-semibold text-gray-900 truncate group-hover:text-emerald-700">
-                        {notification.subject}
-                      </p>
-                      <span
-                        className={`px-2 py-0.5 rounded-full text-xs font-medium ${
-                          notification.type === "machinery"
-                            ? "bg-blue-100 text-blue-800"
-                            : "bg-indigo-100 text-indigo-800"
-                        }`}
-                      >
-                        {notification.type === "machinery"
-                          ? "MACHINERY"
-                          : "CITIZEN"}
-                      </span>
-                    </div>
-
-                    <p className="text-xs text-gray-600 truncate">
-                      {notification.name} •{" "}
-                      {notification.cityULB ||
-                        notification.district ||
-                        "N/A"}
-                    </p>
-
-                    <p className="text-xs text-gray-500 mt-1">
-                      {new Date(notification.createdAt).toLocaleString("en-IN", {
-                        month: "short",
-                        day: "numeric",
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      })}
-                    </p>
-                  </div>
-                </div>
-              </div>
+                notification={notification}
+                onDismiss={markAsRead}
+              />
             ))
           )}
         </div>
       )}
+    </div>
+  );
+};
+
+const SwipeableNotification = ({ notification, onDismiss }) => {
+  const [translateX, setTranslateX] = useState(0);
+  const [isDragging, setIsDragging] = useState(false);
+  const [isDismissing, setIsDismissing] = useState(false);
+  const startXRef = useRef(0);
+
+  const handlePointerDown = (e) => {
+    if (isDismissing) return;
+    setIsDragging(true);
+    startXRef.current = e.clientX || (e.touches && e.touches[0].clientX);
+  };
+
+  const handlePointerMove = (e) => {
+    if (!isDragging) return;
+    const clientX = e.clientX || (e.touches && e.touches[0].clientX);
+    const deltaX = clientX - startXRef.current;
+    
+    // Allow dragging left or right
+    setTranslateX(deltaX);
+  };
+
+  const handlePointerUp = () => {
+    if (!isDragging) return;
+    setIsDragging(false);
+    
+    if (Math.abs(translateX) > 80) { // Threshold to dismiss
+      setIsDismissing(true);
+      setTranslateX(translateX > 0 ? 500 : -500); // Slide off screen
+      setTimeout(() => {
+        onDismiss(notification.id);
+      }, 300); // wait for animation
+    } else {
+      setTranslateX(0); // Snap back
+    }
+  };
+
+  if (isDismissing && translateX === 0) return null; // already dismissed
+
+  return (
+    <div
+      style={{
+        transform: `translateX(${translateX}px)`,
+        transition: isDragging ? 'none' : 'transform 0.3s ease-out, opacity 0.3s',
+        opacity: 1 - Math.abs(translateX) / 200,
+        touchAction: 'pan-y'
+      }}
+      onPointerDown={handlePointerDown}
+      onPointerMove={handlePointerMove}
+      onPointerUp={handlePointerUp}
+      onPointerLeave={handlePointerUp}
+      // Mobile Touch Support Fallback
+      onTouchStart={handlePointerDown}
+      onTouchMove={handlePointerMove}
+      onTouchEnd={handlePointerUp}
+      className="p-4 border-b border-gray-100 hover:bg-emerald-50 transition-colors group border-l-4 border-l-emerald-400 bg-emerald-50/50 cursor-pointer relative"
+    >
+      {/* Background Icon indicating slide to dismiss */}
+      <div className="absolute inset-y-0 right-4 flex items-center justify-end -z-10 opacity-50">
+         <span className="text-red-500 text-xs font-bold">Swipe to dismiss</span>
+      </div>
+
+      <div className="flex items-start space-x-3 bg-emerald-50/50">
+        <div
+          className={`w-3 h-3 rounded-full mt-2 shrink-0 shadow-sm ${
+            notification.priority === "high"
+              ? "bg-red-500"
+              : notification.priority === "medium"
+              ? "bg-yellow-500"
+              : "bg-emerald-500"
+          }`}
+        ></div>
+
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 mb-1">
+            <p className="text-sm font-semibold text-gray-900 truncate group-hover:text-emerald-700">
+              {notification.subject}
+            </p>
+            <span
+              className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+                notification.type === "machinery"
+                  ? "bg-blue-100 text-blue-800"
+                  : "bg-indigo-100 text-indigo-800"
+              }`}
+            >
+              {notification.type === "machinery"
+                ? "MACHINERY"
+                : "CITIZEN"}
+            </span>
+          </div>
+
+          <p className="text-xs text-gray-600 truncate">
+            {notification.name} •{" "}
+            {notification.cityULB ||
+              notification.district ||
+              "N/A"}
+          </p>
+
+          <p className="text-xs text-gray-500 mt-1">
+            {new Date(notification.createdAt).toLocaleString("en-IN", {
+              month: "short",
+              day: "numeric",
+              hour: "2-digit",
+              minute: "2-digit",
+            })}
+          </p>
+        </div>
+      </div>
     </div>
   );
 };
